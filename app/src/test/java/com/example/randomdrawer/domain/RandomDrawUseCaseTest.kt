@@ -45,8 +45,23 @@ class RandomDrawUseCaseTest {
 
     @Test
     fun emptyInputReturnsEmptyResult() {
-        val result = RandomDrawUseCase(Random(4)).draw(emptyList(), DrawMode.MULTIPLE, requestedCount = 3)
+        val result = RandomDrawUseCase(Random(4)).draw(
+            emptyList(),
+            DrawMode.MULTIPLE,
+            requestedCount = 3,
+            nowMillis = 42L
+        )
 
+        assertEquals(0L, result.spaceId)
+        assertEquals(42L, result.createdAtMillis)
         assertTrue(result.items.isEmpty())
+    }
+
+    @Test
+    fun multipleDrawWithZeroCountReturnsOneItemWhenInputExists() {
+        val result = RandomDrawUseCase(Random(5)).draw(items, DrawMode.MULTIPLE, requestedCount = 0)
+
+        assertEquals(1, result.items.size)
+        assertTrue(result.items.first() in items)
     }
 }
