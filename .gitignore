@@ -1,0 +1,8 @@
+.gradle/
+.gradle-bootstrap/
+build/
+app/build/
+local.properties
+.superpowers/
+*.iml
+.idea/
