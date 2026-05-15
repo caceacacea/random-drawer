@@ -11,11 +11,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -26,6 +28,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.randomdrawer.domain.DrawMode
@@ -44,11 +50,14 @@ fun RandomDrawerApp(
     onSetDrawCount: (Int) -> Unit,
     onDraw: () -> Unit,
     onToggleResultExpanded: () -> Unit,
-    onAddText: () -> Unit,
+    onAddText: (String) -> Unit,
     onAddFile: () -> Unit,
     onAddFileWithName: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    var textDialogOpen by remember { mutableStateOf(false) }
+    var textValue by remember { mutableStateOf("") }
+
     LaunchedEffect(state.drawerOpen) {
         if (state.drawerOpen) drawerState.open() else drawerState.close()
     }
@@ -136,7 +145,9 @@ fun RandomDrawerApp(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onAddText, modifier = Modifier.weight(1f)) { Text("Add Text") }
+                    OutlinedButton(onClick = { textDialogOpen = true }, modifier = Modifier.weight(1f)) {
+                        Text("Add Text")
+                    }
                     OutlinedButton(onClick = onAddFile, modifier = Modifier.weight(1f)) { Text("Add File") }
                 }
                 OutlinedButton(onClick = onAddFileWithName, modifier = Modifier.fillMaxWidth()) {
@@ -163,6 +174,33 @@ fun RandomDrawerApp(
                 }
             }
         }
+    }
+
+    if (textDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { textDialogOpen = false },
+            title = { Text("Add Text") },
+            text = {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { textValue = it },
+                    label = { Text("Text") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = textValue.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onAddText(trimmed)
+                        textValue = ""
+                        textDialogOpen = false
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { textDialogOpen = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

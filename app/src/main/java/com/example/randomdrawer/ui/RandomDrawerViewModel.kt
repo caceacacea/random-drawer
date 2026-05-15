@@ -69,6 +69,29 @@ class RandomDrawerViewModel(
         }
     }
 
+    fun createNewSpace() {
+        viewModelScope.launch {
+            val spaceId = repository.createSpace()
+            selectSpace(spaceId)
+        }
+    }
+
+    fun addText(text: String) {
+        val spaceId = mutableState.value.selectedSpaceId ?: return
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+
+        viewModelScope.launch {
+            repository.addTextItem(spaceId, trimmed)
+        }
+    }
+
+    fun deleteAllCache() {
+        viewModelScope.launch {
+            repository.deleteAllCache()
+        }
+    }
+
     fun drawRandom() {
         val next = mutableState.value.draw(randomDrawUseCase)
         mutableState.value = next

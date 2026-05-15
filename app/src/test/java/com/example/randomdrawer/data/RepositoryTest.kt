@@ -125,6 +125,18 @@ class RepositoryTest {
     }
 
     @Test
+    fun createSpaceAddsBlankNewDrawSpace() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val firstSpaceId = repository.ensureInitialSpace(nowMillis = 1L)
+
+        val secondSpaceId = repository.createSpace(nowMillis = 2L)
+        val spaces = dao.observeSpaces().first()
+
+        assertEquals(listOf(secondSpaceId, firstSpaceId), spaces.map { it.id })
+        assertEquals("New draw", spaces.first().title)
+    }
+
+    @Test
     fun deleteAllCacheClearsPathsButKeepsFileEntries() = runTest {
         val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
         val spaceId = repository.ensureInitialSpace()

@@ -32,15 +32,15 @@ class MainActivity : ComponentActivity() {
                 RandomDrawerApp(
                     state = state,
                     onToggleDrawer = viewModel::toggleDrawer,
-                    onNewSpace = {},
+                    onNewSpace = viewModel::createNewSpace,
                     onSelectSpace = viewModel::selectSpace,
                     onToggleTheme = viewModel::toggleTheme,
-                    onDeleteAllCache = {},
+                    onDeleteAllCache = viewModel::deleteAllCache,
                     onSetDrawMode = viewModel::setDrawMode,
                     onSetDrawCount = viewModel::setDrawCount,
                     onDraw = viewModel::drawRandom,
                     onToggleResultExpanded = viewModel::toggleResultExpanded,
-                    onAddText = {},
+                    onAddText = viewModel::addText,
                     onAddFile = {},
                     onAddFileWithName = {}
                 )

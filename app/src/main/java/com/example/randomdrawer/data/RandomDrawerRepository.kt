@@ -37,6 +37,16 @@ class RandomDrawerRepository(
         )
     }
 
+    suspend fun createSpace(nowMillis: Long = System.currentTimeMillis()): Long {
+        return dao.insertSpace(
+            DrawSpaceEntity(
+                title = "New draw",
+                createdAtMillis = nowMillis,
+                updatedAtMillis = nowMillis
+            )
+        )
+    }
+
     fun observeSpaces(): Flow<List<DrawSpace>> = dao.observeSpaces().map { spaces ->
         spaces.map { it.toDomain() }
     }

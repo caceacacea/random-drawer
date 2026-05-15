@@ -26,7 +26,7 @@ class RandomDrawerComposeTest {
                     onSetDrawCount = {},
                     onDraw = {},
                     onToggleResultExpanded = {},
-                    onAddText = {},
+                    onAddText = { _ -> },
                     onAddFile = {},
                     onAddFileWithName = {}
                 )
