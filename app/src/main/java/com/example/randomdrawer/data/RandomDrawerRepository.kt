@@ -1,12 +1,14 @@
 package com.example.randomdrawer.data
 
 import com.example.randomdrawer.domain.DrawMode
+import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.DrawSpace
 import com.example.randomdrawer.domain.DrawerItem
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.ThemeMode
 import com.example.randomdrawer.domain.TitleFormatter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -41,6 +43,24 @@ class RandomDrawerRepository(
 
     fun observeItems(spaceId: Long): Flow<List<DrawerItem>> = dao.observeItems(spaceId).map { items ->
         items.map { it.toDomain() }
+    }
+
+    fun observeLastResult(spaceId: Long): Flow<DrawResult> {
+        return combine(dao.observeItems(spaceId), dao.observeLastResult(spaceId)) { itemEntities, resultEntity ->
+            val itemsById = itemEntities.map { it.toDomain() }.associateBy { it.id }
+            val resultItems = resultEntity
+                ?.itemIdsCsv
+                ?.split(",")
+                ?.mapNotNull { value -> value.toLongOrNull()?.let(itemsById::get) }
+                .orEmpty()
+
+            DrawResult(
+                spaceId = spaceId,
+                items = resultItems,
+                createdAtMillis = resultEntity?.createdAtMillis ?: 0L,
+                expanded = resultEntity?.expanded ?: false
+            )
+        }
     }
 
     fun observeTheme(): Flow<ThemeMode> = dao.observeSetting(ThemeSettingKey).map { setting ->
@@ -93,6 +113,17 @@ class RandomDrawerRepository(
 
     suspend fun updateDrawSettings(spaceId: Long, drawMode: DrawMode, drawCount: Int) {
         dao.updateDrawSettings(spaceId, drawMode.name, drawCount.coerceAtLeast(1))
+    }
+
+    suspend fun saveLastResult(result: DrawResult) {
+        dao.upsertLastResult(
+            LastResultEntity(
+                spaceId = result.spaceId,
+                itemIdsCsv = result.items.joinToString(",") { it.id.toString() },
+                createdAtMillis = result.createdAtMillis,
+                expanded = result.expanded
+            )
+        )
     }
 
     suspend fun deleteAllCache(): Int {

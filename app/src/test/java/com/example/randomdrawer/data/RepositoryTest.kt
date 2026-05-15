@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.randomdrawer.domain.DrawMode
+import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
 import java.io.File
 import kotlinx.coroutines.flow.first
@@ -145,5 +146,41 @@ class RepositoryTest {
         assertEquals(1, items.size)
         assertEquals(null, items.single().cachedFilePath)
         assertEquals("my birthday", items.single().displayName)
+    }
+
+    @Test
+    fun lastResultRestoresDrawnOrderAndCurrentCacheState() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+        dao.insertItem(
+            DrawerItemEntity(
+                spaceId = spaceId,
+                kind = ItemKind.FILE.name,
+                displayName = "my birthday",
+                originalFileName = "IMG_4832.jpg",
+                mimeType = "image/jpeg",
+                cachedFilePath = File(context.filesDir, "random_drawer_cache/fake.jpg").absolutePath,
+                createdAtMillis = 10L
+            )
+        )
+        dao.insertItem(
+            DrawerItemEntity(
+                spaceId = spaceId,
+                kind = ItemKind.TEXT.name,
+                displayName = "Weekend plan ideas",
+                createdAtMillis = 20L
+            )
+        )
+        val items = repository.observeItems(spaceId).first()
+        val fileItem = items.single { it.displayName == "my birthday" }
+        val textItem = items.single { it.displayName == "Weekend plan ideas" }
+
+        repository.saveLastResult(DrawResult(spaceId, listOf(fileItem, textItem), createdAtMillis = 30L, expanded = true))
+        repository.deleteAllCache()
+        val restored = repository.observeLastResult(spaceId).first()
+
+        assertEquals(listOf("my birthday", "Weekend plan ideas"), restored.items.map { it.displayName })
+        assertEquals(true, restored.expanded)
+        assertEquals(null, restored.items.first().cachedFilePath)
     }
 }
