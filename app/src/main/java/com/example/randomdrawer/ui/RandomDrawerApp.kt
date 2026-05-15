@@ -52,7 +52,10 @@ fun RandomDrawerApp(
     onToggleResultExpanded: () -> Unit,
     onAddText: (String) -> Unit,
     onAddFile: () -> Unit,
-    onAddFileWithName: () -> Unit
+    onAddFileWithName: () -> Unit,
+    onConfirmFileWithName: (PendingPickedFile, String) -> Unit,
+    onCancelFileWithName: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var textDialogOpen by remember { mutableStateOf(false) }
@@ -133,7 +136,7 @@ fun RandomDrawerApp(
                     }
                 }
 
-                ResultCard(state, onToggleResultExpanded)
+                ResultCard(state, onToggleResultExpanded, onOpenFile)
 
                 Button(onClick = onDraw, modifier = Modifier.fillMaxWidth()) {
                     val label = if (state.drawMode == DrawMode.MULTIPLE) {
@@ -169,6 +172,12 @@ fun RandomDrawerApp(
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            val cachedPath = item.cachedFilePath
+                            if (item.kind == ItemKind.FILE && cachedPath != null) {
+                                TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
+                                    Text("Open")
+                                }
+                            }
                         }
                     }
                 }
@@ -202,10 +211,43 @@ fun RandomDrawerApp(
             }
         )
     }
+
+    state.pendingPickedFile?.let { pendingFile ->
+        var displayName by remember(pendingFile.uriString) {
+            mutableStateOf(pendingFile.originalFileName)
+        }
+
+        AlertDialog(
+            onDismissRequest = onCancelFileWithName,
+            title = { Text("Display name") },
+            text = {
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    label = { Text("Display name") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = displayName.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onConfirmFileWithName(pendingFile, trimmed)
+                    }
+                }) { Text("Save File") }
+            },
+            dismissButton = {
+                TextButton(onClick = onCancelFileWithName) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
-private fun ResultCard(state: RandomDrawerUiState, onToggleResultExpanded: () -> Unit) {
+private fun ResultCard(
+    state: RandomDrawerUiState,
+    onToggleResultExpanded: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
+) {
     val result = state.lastResult
     if (result.items.isEmpty()) {
         Card(Modifier.fillMaxWidth()) {
@@ -223,16 +265,31 @@ private fun ResultCard(state: RandomDrawerUiState, onToggleResultExpanded: () ->
                     }
                 }
                 Column {
+                    val firstItem = result.items.first()
                     Text(if (result.items.size > 1) "${result.items.size} random results" else "Random result")
-                    Text(result.items.first().displayName, style = MaterialTheme.typography.titleMedium)
-                    if (result.items.first().kind == ItemKind.FILE && result.items.first().cachedFilePath == null) {
+                    Text(firstItem.displayName, style = MaterialTheme.typography.titleMedium)
+                    if (firstItem.kind == ItemKind.FILE && firstItem.cachedFilePath == null) {
                         Text("Cache deleted", color = MaterialTheme.colorScheme.error)
+                    }
+                    val cachedPath = firstItem.cachedFilePath
+                    if (firstItem.kind == ItemKind.FILE && cachedPath != null) {
+                        TextButton(onClick = { onOpenFile(cachedPath, firstItem.mimeType) }) {
+                            Text("Open")
+                        }
                     }
                 }
             }
             if (result.expanded) {
                 result.items.forEachIndexed { index, item ->
-                    Text("${index + 1}. ${item.displayName}")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("${index + 1}. ${item.displayName}")
+                        val cachedPath = item.cachedFilePath
+                        if (item.kind == ItemKind.FILE && cachedPath != null) {
+                            TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
+                                Text("Open")
+                            }
+                        }
+                    }
                 }
             }
         }

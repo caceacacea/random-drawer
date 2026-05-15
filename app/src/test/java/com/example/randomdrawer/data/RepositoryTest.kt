@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
+import java.io.ByteArrayInputStream
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -158,6 +159,28 @@ class RepositoryTest {
         assertEquals(1, items.size)
         assertEquals(null, items.single().cachedFilePath)
         assertEquals("my birthday", items.single().displayName)
+    }
+
+    @Test
+    fun addCachedFileItemCopiesFileAndStoresMetadata() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+
+        repository.addCachedFileItem(
+            spaceId = spaceId,
+            displayName = "my birthday",
+            originalFileName = "IMG_4832.jpg",
+            mimeType = "image/jpeg",
+            input = ByteArrayInputStream("image bytes".toByteArray()),
+            nowMillis = 10L
+        )
+        val item = dao.getItems(spaceId).single()
+
+        assertEquals(ItemKind.FILE.name, item.kind)
+        assertEquals("my birthday", item.displayName)
+        assertEquals("IMG_4832.jpg", item.originalFileName)
+        assertEquals("image/jpeg", item.mimeType)
+        assertEquals("image bytes", File(item.cachedFilePath!!).readText())
     }
 
     @Test

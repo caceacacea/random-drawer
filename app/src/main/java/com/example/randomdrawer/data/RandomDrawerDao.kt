@@ -35,6 +35,9 @@ interface RandomDrawerDao {
     @Insert
     suspend fun insertItem(item: DrawerItemEntity): Long
 
+    @Query("UPDATE drawer_items SET cachedFilePath = :cachedFilePath WHERE id = :itemId")
+    suspend fun updateCachedFilePath(itemId: Long, cachedFilePath: String)
+
     @Query("UPDATE drawer_items SET cachedFilePath = NULL WHERE cachedFilePath IS NOT NULL")
     suspend fun clearAllCachedPaths(): Int
 

@@ -7,6 +7,7 @@ import com.example.randomdrawer.domain.DrawerItem
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.ThemeMode
 import com.example.randomdrawer.domain.TitleFormatter
+import java.io.InputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -119,6 +120,26 @@ class RandomDrawerRepository(
         renameDefaultSpaceFromFirstItem(spaceId, displayName, nowMillis)
         dao.touchSpace(spaceId, nowMillis)
         return itemId
+    }
+
+    suspend fun addCachedFileItem(
+        spaceId: Long,
+        displayName: String,
+        originalFileName: String,
+        mimeType: String?,
+        input: InputStream,
+        nowMillis: Long = System.currentTimeMillis()
+    ) {
+        val itemId = addFileMetadata(
+            spaceId = spaceId,
+            displayName = displayName,
+            originalFileName = originalFileName,
+            mimeType = mimeType,
+            cachedFilePath = null,
+            nowMillis = nowMillis
+        )
+        val cached = fileCacheManager.copyToCache(spaceId, itemId, originalFileName, input)
+        dao.updateCachedFilePath(itemId, cached.path)
     }
 
     suspend fun updateDrawSettings(spaceId: Long, drawMode: DrawMode, drawCount: Int) {

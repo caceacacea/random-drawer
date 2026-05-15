@@ -6,6 +6,7 @@ import com.example.randomdrawer.data.RandomDrawerRepository
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.RandomDrawUseCase
 import com.example.randomdrawer.domain.ThemeMode
+import java.io.InputStream
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,6 +91,32 @@ class RandomDrawerViewModel(
         viewModelScope.launch {
             repository.deleteAllCache()
         }
+    }
+
+    fun addCachedFile(
+        spaceId: Long,
+        displayName: String,
+        originalFileName: String,
+        mimeType: String?,
+        input: InputStream
+    ) {
+        viewModelScope.launch {
+            repository.addCachedFileItem(spaceId, displayName, originalFileName, mimeType, input)
+        }
+    }
+
+    fun setPendingPickedFile(uriString: String, originalFileName: String, mimeType: String?) {
+        mutableState.value = mutableState.value.copy(
+            pendingPickedFile = PendingPickedFile(
+                uriString = uriString,
+                originalFileName = originalFileName,
+                mimeType = mimeType
+            )
+        )
+    }
+
+    fun clearPendingPickedFile() {
+        mutableState.value = mutableState.value.copy(pendingPickedFile = null)
     }
 
     fun drawRandom() {

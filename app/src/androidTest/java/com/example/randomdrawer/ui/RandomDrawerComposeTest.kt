@@ -28,7 +28,10 @@ class RandomDrawerComposeTest {
                     onToggleResultExpanded = {},
                     onAddText = { _ -> },
                     onAddFile = {},
-                    onAddFileWithName = {}
+                    onAddFileWithName = {},
+                    onConfirmFileWithName = { _, _ -> },
+                    onCancelFileWithName = {},
+                    onOpenFile = { _, _ -> }
                 )
             }
         }
