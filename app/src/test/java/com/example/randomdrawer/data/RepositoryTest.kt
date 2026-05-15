@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.ItemKind
+import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -96,5 +97,53 @@ class RepositoryTest {
         assertEquals(emptyList<String>(), dao.getAllCachedPaths())
         assertEquals(1, dao.observeItems(firstSpace).first().size)
         assertEquals(1, dao.observeItems(secondSpace).first().size)
+    }
+
+    @Test
+    fun ensureInitialSpaceCreatesDefaultSpaceAndAmoledTheme() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+
+        val selectedId = repository.ensureInitialSpace()
+        val spaces = dao.observeSpaces().first()
+        val theme = dao.getSetting(RandomDrawerRepository.ThemeSettingKey)
+
+        assertEquals(selectedId, spaces.single().id)
+        assertEquals("New draw", spaces.single().title)
+        assertEquals("AMOLED", theme?.value)
+    }
+
+    @Test
+    fun firstAddedTextRenamesDefaultSpace() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+
+        repository.addTextItem(spaceId, "Weekend plan ideas", nowMillis = 10L)
+        val space = dao.getSpace(spaceId)
+
+        assertEquals("Weekend plan ideas", space?.title)
+    }
+
+    @Test
+    fun deleteAllCacheClearsPathsButKeepsFileEntries() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+        dao.insertItem(
+            DrawerItemEntity(
+                spaceId = spaceId,
+                kind = ItemKind.FILE.name,
+                displayName = "my birthday",
+                originalFileName = "IMG_4832.jpg",
+                mimeType = "image/jpeg",
+                cachedFilePath = File(context.filesDir, "random_drawer_cache/fake.jpg").absolutePath,
+                createdAtMillis = 10L
+            )
+        )
+
+        repository.deleteAllCache()
+        val items = dao.getItems(spaceId)
+
+        assertEquals(1, items.size)
+        assertEquals(null, items.single().cachedFilePath)
+        assertEquals("my birthday", items.single().displayName)
     }
 }
