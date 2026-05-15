@@ -29,4 +29,23 @@ class RandomDrawerViewModelTest {
         assertEquals(3, updated.lastResult.items.size)
         assertEquals(true, updated.lastResult.expanded)
     }
+
+    @Test
+    fun cappedDrawCountAllowsConfiguredMultiRepeats() = runTest {
+        val items = (1L..2L).map {
+            DrawerItem(it, 1L, ItemKind.TEXT, "Item $it", null, null, null, it)
+        }
+
+        val limited = RandomDrawerUiState(
+            selectedSpaceId = 1L,
+            items = items,
+            drawMode = DrawMode.MULTIPLE,
+            drawCount = 5,
+            multiRepeatLimit = 2
+        )
+        val unlimited = limited.copy(multiRepeatLimit = 0)
+
+        assertEquals(4, limited.cappedDrawCount)
+        assertEquals(5, unlimited.cappedDrawCount)
+    }
 }

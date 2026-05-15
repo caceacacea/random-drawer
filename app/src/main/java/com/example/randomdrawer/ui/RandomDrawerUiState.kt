@@ -14,6 +14,10 @@ data class RandomDrawerUiState(
     val items: List<DrawerItem> = emptyList(),
     val drawMode: DrawMode = DrawMode.SINGLE,
     val drawCount: Int = 2,
+    val singleRepeatLimit: Int = 0,
+    val multiRepeatLimit: Int = 1,
+    val lastSingleItemId: Long? = null,
+    val lastSingleStreakCount: Int = 0,
     val lastResult: DrawResult = DrawResult(0L, emptyList(), 0L),
     val themeMode: ThemeMode = ThemeMode.AMOLED,
     val drawerOpen: Boolean = false,
@@ -21,14 +25,29 @@ data class RandomDrawerUiState(
 ) {
     val savedItemCount: Int = items.size
     val cachedFileCount: Int = items.count { it.hasCache }
-    val cappedDrawCount: Int = drawCount.coerceAtMost(items.size).coerceAtLeast(1)
+    val cappedDrawCount: Int = when {
+        drawMode != DrawMode.MULTIPLE -> 1
+        items.isEmpty() -> 1
+        multiRepeatLimit == 0 -> drawCount.coerceAtLeast(1)
+        else -> drawCount.coerceAtLeast(1).coerceAtMost(items.size * multiRepeatLimit.coerceAtLeast(1))
+    }
 
     fun draw(useCase: RandomDrawUseCase): RandomDrawerUiState {
         if (items.isEmpty()) {
             return copy(lastResult = DrawResult(selectedSpaceId ?: 0L, emptyList(), System.currentTimeMillis()))
         }
 
-        return copy(lastResult = useCase.draw(items, drawMode, cappedDrawCount))
+        return copy(
+            lastResult = useCase.draw(
+                items = items,
+                mode = drawMode,
+                requestedCount = cappedDrawCount,
+                singleRepeatLimit = singleRepeatLimit,
+                lastSingleItemId = lastSingleItemId,
+                lastSingleStreakCount = lastSingleStreakCount,
+                multiRepeatLimit = multiRepeatLimit
+            )
+        )
     }
 
     fun toggleResultExpanded(): RandomDrawerUiState {

@@ -48,6 +48,8 @@ fun RandomDrawerApp(
     onDeleteAllCache: () -> Unit,
     onSetDrawMode: (DrawMode) -> Unit,
     onSetDrawCount: (Int) -> Unit,
+    onSetSingleRepeatLimit: (Int) -> Unit,
+    onSetMultiRepeatLimit: (Int) -> Unit,
     onDraw: () -> Unit,
     onToggleResultExpanded: () -> Unit,
     onAddText: (String) -> Unit,
@@ -85,6 +87,17 @@ fun RandomDrawerApp(
                 OutlinedButton(onClick = onDeleteAllCache, modifier = Modifier.padding(16.dp)) {
                     Text("Delete All Cache")
                 }
+                Text("Settings", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                RepeatLimitRow(
+                    label = "Single repeat limit",
+                    value = state.singleRepeatLimit,
+                    onValueChange = onSetSingleRepeatLimit
+                )
+                RepeatLimitRow(
+                    label = "Multiple repeat limit",
+                    value = state.multiRepeatLimit,
+                    onValueChange = onSetMultiRepeatLimit
+                )
             }
         }
     ) {
@@ -239,6 +252,25 @@ fun RandomDrawerApp(
                 TextButton(onClick = onCancelFileWithName) { Text("Cancel") }
             }
         )
+    }
+}
+
+@Composable
+private fun RepeatLimitRow(
+    label: String,
+    value: Int,
+    onValueChange: (Int) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { onValueChange(value - 1) }) { Text("-") }
+            Text(value.toString(), modifier = Modifier.padding(12.dp))
+            OutlinedButton(onClick = { onValueChange(value + 1) }) { Text("+") }
+        }
     }
 }
 

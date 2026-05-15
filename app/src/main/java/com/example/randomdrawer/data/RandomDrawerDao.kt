@@ -26,6 +26,12 @@ interface RandomDrawerDao {
     @Query("UPDATE draw_spaces SET drawMode = :drawMode, drawCount = :drawCount WHERE id = :spaceId")
     suspend fun updateDrawSettings(spaceId: Long, drawMode: String, drawCount: Int)
 
+    @Query("UPDATE draw_spaces SET singleRepeatLimit = :singleRepeatLimit, multiRepeatLimit = :multiRepeatLimit WHERE id = :spaceId")
+    suspend fun updateRepeatSettings(spaceId: Long, singleRepeatLimit: Int, multiRepeatLimit: Int)
+
+    @Query("UPDATE draw_spaces SET lastSingleItemId = :lastSingleItemId, lastSingleStreakCount = :lastSingleStreakCount WHERE id = :spaceId")
+    suspend fun updateSingleDrawStreak(spaceId: Long, lastSingleItemId: Long?, lastSingleStreakCount: Int)
+
     @Query("SELECT * FROM drawer_items WHERE spaceId = :spaceId ORDER BY createdAtMillis DESC")
     fun observeItems(spaceId: Long): Flow<List<DrawerItemEntity>>
 

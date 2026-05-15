@@ -27,7 +27,9 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             RandomDrawerDatabase::class.java,
             "random-drawer.db"
-        ).build()
+        )
+            .addMigrations(RandomDrawerDatabase.Migration1To2)
+            .build()
         val repository = RandomDrawerRepository(database.dao(), FileCacheManager(filesDir))
         val viewModel = RandomDrawerViewModel(repository)
         viewModel.initialize()
@@ -69,6 +71,8 @@ class MainActivity : ComponentActivity() {
                     onDeleteAllCache = viewModel::deleteAllCache,
                     onSetDrawMode = viewModel::setDrawMode,
                     onSetDrawCount = viewModel::setDrawCount,
+                    onSetSingleRepeatLimit = viewModel::setSingleRepeatLimit,
+                    onSetMultiRepeatLimit = viewModel::setMultiRepeatLimit,
                     onDraw = viewModel::drawRandom,
                     onToggleResultExpanded = viewModel::toggleResultExpanded,
                     onAddText = viewModel::addText,

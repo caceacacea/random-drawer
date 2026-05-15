@@ -59,6 +59,21 @@ class RepositoryTest {
     }
 
     @Test
+    fun storesRepeatLimitsAndSingleDrawStreak() = runTest {
+        val spaceId = dao.insertSpace(DrawSpaceEntity(title = "First", createdAtMillis = 1L, updatedAtMillis = 1L))
+
+        dao.updateRepeatSettings(spaceId, singleRepeatLimit = 3, multiRepeatLimit = 2)
+        dao.updateSingleDrawStreak(spaceId, lastSingleItemId = 9L, lastSingleStreakCount = 3)
+
+        val space = dao.observeSpaces().first().single()
+
+        assertEquals(3, space.singleRepeatLimit)
+        assertEquals(2, space.multiRepeatLimit)
+        assertEquals(9L, space.lastSingleItemId)
+        assertEquals(3, space.lastSingleStreakCount)
+    }
+
+    @Test
     fun storesLastResultExpansionStateForSpace() = runTest {
         val spaceId = dao.insertSpace(DrawSpaceEntity(title = "First", createdAtMillis = 1L, updatedAtMillis = 1L))
 

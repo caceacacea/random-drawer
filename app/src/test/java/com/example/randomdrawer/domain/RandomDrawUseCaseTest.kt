@@ -64,4 +64,58 @@ class RandomDrawUseCaseTest {
         assertEquals(1, result.items.size)
         assertTrue(result.items.first() in items)
     }
+
+    @Test
+    fun singleDrawExcludesStreakItemAfterRepeatLimitWhenAlternativeExists() {
+        val result = RandomDrawUseCase(Random(6)).draw(
+            items.take(2),
+            DrawMode.SINGLE,
+            requestedCount = 1,
+            singleRepeatLimit = 2,
+            lastSingleItemId = 1L,
+            lastSingleStreakCount = 2
+        )
+
+        assertEquals(2L, result.items.single().id)
+    }
+
+    @Test
+    fun singleDrawStillReturnsOnlyItemAfterRepeatLimit() {
+        val result = RandomDrawUseCase(Random(7)).draw(
+            items.take(1),
+            DrawMode.SINGLE,
+            requestedCount = 1,
+            singleRepeatLimit = 2,
+            lastSingleItemId = 1L,
+            lastSingleStreakCount = 2
+        )
+
+        assertEquals(1L, result.items.single().id)
+    }
+
+    @Test
+    fun multipleDrawAllowsRepeatsUpToConfiguredLimit() {
+        val result = RandomDrawUseCase(Random(8)).draw(
+            items.take(2),
+            DrawMode.MULTIPLE,
+            requestedCount = 5,
+            multiRepeatLimit = 2
+        )
+
+        assertEquals(4, result.items.size)
+        assertTrue(result.items.groupingBy { it.id }.eachCount().values.all { it <= 2 })
+    }
+
+    @Test
+    fun multipleDrawWithZeroRepeatLimitUsesRequestedCount() {
+        val result = RandomDrawUseCase(Random(9)).draw(
+            items.take(1),
+            DrawMode.MULTIPLE,
+            requestedCount = 5,
+            multiRepeatLimit = 0
+        )
+
+        assertEquals(5, result.items.size)
+        assertEquals(listOf(1L, 1L, 1L, 1L, 1L), result.items.map { it.id })
+    }
 }

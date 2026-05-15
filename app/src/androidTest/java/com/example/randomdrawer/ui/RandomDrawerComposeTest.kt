@@ -24,6 +24,8 @@ class RandomDrawerComposeTest {
                     onDeleteAllCache = {},
                     onSetDrawMode = {},
                     onSetDrawCount = {},
+                    onSetSingleRepeatLimit = {},
+                    onSetMultiRepeatLimit = {},
                     onDraw = {},
                     onToggleResultExpanded = {},
                     onAddText = { _ -> },

@@ -36,7 +36,11 @@ class RandomDrawerViewModel(
                     selectedSpaceId = selectedSpace?.id,
                     selectedSpaceTitle = selectedSpace?.title ?: "New draw",
                     drawMode = selectedSpace?.drawMode ?: DrawMode.SINGLE,
-                    drawCount = selectedSpace?.drawCount ?: 2
+                    drawCount = selectedSpace?.drawCount ?: 2,
+                    singleRepeatLimit = selectedSpace?.singleRepeatLimit ?: 0,
+                    multiRepeatLimit = selectedSpace?.multiRepeatLimit ?: 1,
+                    lastSingleItemId = selectedSpace?.lastSingleItemId,
+                    lastSingleStreakCount = selectedSpace?.lastSingleStreakCount ?: 0
                 )
             }
         }
@@ -54,6 +58,10 @@ class RandomDrawerViewModel(
             selectedSpaceTitle = selectedSpace?.title ?: mutableState.value.selectedSpaceTitle,
             drawMode = selectedSpace?.drawMode ?: mutableState.value.drawMode,
             drawCount = selectedSpace?.drawCount ?: mutableState.value.drawCount,
+            singleRepeatLimit = selectedSpace?.singleRepeatLimit ?: mutableState.value.singleRepeatLimit,
+            multiRepeatLimit = selectedSpace?.multiRepeatLimit ?: mutableState.value.multiRepeatLimit,
+            lastSingleItemId = selectedSpace?.lastSingleItemId,
+            lastSingleStreakCount = selectedSpace?.lastSingleStreakCount ?: 0,
             drawerOpen = false
         )
         itemCollectionJob?.cancel()
@@ -120,11 +128,27 @@ class RandomDrawerViewModel(
     }
 
     fun drawRandom() {
+        val current = mutableState.value
         val next = mutableState.value.draw(randomDrawUseCase)
         mutableState.value = next
         val result = next.lastResult
         if (result.items.isNotEmpty()) {
-            viewModelScope.launch { repository.saveLastResult(result) }
+            viewModelScope.launch {
+                repository.saveLastResult(result)
+                if (current.drawMode == DrawMode.SINGLE) {
+                    val itemId = result.items.single().id
+                    val streakCount = if (itemId == current.lastSingleItemId) {
+                        current.lastSingleStreakCount + 1
+                    } else {
+                        1
+                    }
+                    mutableState.value = mutableState.value.copy(
+                        lastSingleItemId = itemId,
+                        lastSingleStreakCount = streakCount
+                    )
+                    repository.updateSingleDrawStreak(current.selectedSpaceId ?: result.spaceId, itemId, streakCount)
+                }
+            }
         }
     }
 
@@ -142,6 +166,24 @@ class RandomDrawerViewModel(
         mutableState.value = current.copy(drawCount = next)
         current.selectedSpaceId?.let { spaceId ->
             viewModelScope.launch { repository.updateDrawSettings(spaceId, current.drawMode, next) }
+        }
+    }
+
+    fun setSingleRepeatLimit(limit: Int) {
+        val current = mutableState.value
+        val next = limit.coerceAtLeast(0)
+        mutableState.value = current.copy(singleRepeatLimit = next)
+        current.selectedSpaceId?.let { spaceId ->
+            viewModelScope.launch { repository.updateRepeatSettings(spaceId, next, current.multiRepeatLimit) }
+        }
+    }
+
+    fun setMultiRepeatLimit(limit: Int) {
+        val current = mutableState.value
+        val next = limit.coerceAtLeast(0)
+        mutableState.value = current.copy(multiRepeatLimit = next)
+        current.selectedSpaceId?.let { spaceId ->
+            viewModelScope.launch { repository.updateRepeatSettings(spaceId, current.singleRepeatLimit, next) }
         }
     }
 

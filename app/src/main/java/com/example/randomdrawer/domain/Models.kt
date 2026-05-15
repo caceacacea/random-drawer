@@ -21,7 +21,11 @@ data class DrawSpace(
     val createdAtMillis: Long,
     val updatedAtMillis: Long,
     val drawMode: DrawMode,
-    val drawCount: Int
+    val drawCount: Int,
+    val singleRepeatLimit: Int = 0,
+    val multiRepeatLimit: Int = 1,
+    val lastSingleItemId: Long? = null,
+    val lastSingleStreakCount: Int = 0
 )
 
 data class DrawerItem(

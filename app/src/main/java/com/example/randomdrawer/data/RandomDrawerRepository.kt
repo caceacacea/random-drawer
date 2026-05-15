@@ -146,6 +146,22 @@ class RandomDrawerRepository(
         dao.updateDrawSettings(spaceId, drawMode.name, drawCount.coerceAtLeast(1))
     }
 
+    suspend fun updateRepeatSettings(spaceId: Long, singleRepeatLimit: Int, multiRepeatLimit: Int) {
+        dao.updateRepeatSettings(
+            spaceId = spaceId,
+            singleRepeatLimit = singleRepeatLimit.coerceAtLeast(0),
+            multiRepeatLimit = multiRepeatLimit.coerceAtLeast(0)
+        )
+    }
+
+    suspend fun updateSingleDrawStreak(spaceId: Long, lastSingleItemId: Long?, lastSingleStreakCount: Int) {
+        dao.updateSingleDrawStreak(
+            spaceId = spaceId,
+            lastSingleItemId = lastSingleItemId,
+            lastSingleStreakCount = lastSingleStreakCount.coerceAtLeast(0)
+        )
+    }
+
     suspend fun saveLastResult(result: DrawResult) {
         dao.upsertLastResult(
             LastResultEntity(
@@ -179,7 +195,11 @@ private fun DrawSpaceEntity.toDomain(): DrawSpace {
         createdAtMillis = createdAtMillis,
         updatedAtMillis = updatedAtMillis,
         drawMode = DrawMode.valueOf(drawMode),
-        drawCount = drawCount
+        drawCount = drawCount,
+        singleRepeatLimit = singleRepeatLimit,
+        multiRepeatLimit = multiRepeatLimit,
+        lastSingleItemId = lastSingleItemId,
+        lastSingleStreakCount = lastSingleStreakCount
     )
 }
 
