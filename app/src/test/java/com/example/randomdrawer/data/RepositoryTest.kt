@@ -141,6 +141,18 @@ class RepositoryTest {
     }
 
     @Test
+    fun renameSpacePersistsCustomName() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+
+        repository.renameSpace(spaceId, "Trip ideas", nowMillis = 10L)
+        val space = dao.getSpace(spaceId)
+
+        assertEquals("Trip ideas", space?.title)
+        assertEquals(10L, space?.updatedAtMillis)
+    }
+
+    @Test
     fun createSpaceAddsBlankNewDrawSpace() = runTest {
         val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
         val firstSpaceId = repository.ensureInitialSpace(nowMillis = 1L)
@@ -174,6 +186,68 @@ class RepositoryTest {
         assertEquals(1, items.size)
         assertEquals(null, items.single().cachedFilePath)
         assertEquals("my birthday", items.single().displayName)
+    }
+
+    @Test
+    fun deleteItemRemovesOnlyThatEntryAndCachedFile() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val spaceId = repository.ensureInitialSpace()
+        val cachedFile = File(context.filesDir, "random_drawer_cache/delete-me.txt").apply {
+            parentFile?.mkdirs()
+            writeText("cached")
+        }
+        val fileItemId = dao.insertItem(
+            DrawerItemEntity(
+                spaceId = spaceId,
+                kind = ItemKind.FILE.name,
+                displayName = "Delete me",
+                originalFileName = "delete-me.txt",
+                cachedFilePath = cachedFile.absolutePath,
+                createdAtMillis = 10L
+            )
+        )
+        dao.insertItem(
+            DrawerItemEntity(
+                spaceId = spaceId,
+                kind = ItemKind.TEXT.name,
+                displayName = "Keep me",
+                createdAtMillis = 11L
+            )
+        )
+
+        repository.deleteItem(fileItemId)
+        val remaining = dao.getItems(spaceId)
+
+        assertEquals(listOf("Keep me"), remaining.map { it.displayName })
+        assertEquals(false, cachedFile.exists())
+    }
+
+    @Test
+    fun deleteSpaceRemovesEntriesAndCachedFiles() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+        val firstSpaceId = repository.ensureInitialSpace()
+        val secondSpaceId = repository.createSpace(nowMillis = 2L)
+        val cachedFile = File(context.filesDir, "random_drawer_cache/delete-space.txt").apply {
+            parentFile?.mkdirs()
+            writeText("cached")
+        }
+        dao.insertItem(
+            DrawerItemEntity(
+                spaceId = secondSpaceId,
+                kind = ItemKind.FILE.name,
+                displayName = "Space file",
+                originalFileName = "delete-space.txt",
+                cachedFilePath = cachedFile.absolutePath,
+                createdAtMillis = 10L
+            )
+        )
+
+        repository.deleteSpace(secondSpaceId)
+        val spaces = dao.observeSpaces().first()
+
+        assertEquals(listOf(firstSpaceId), spaces.map { it.id })
+        assertEquals(emptyList<DrawerItemEntity>(), dao.getItems(secondSpaceId))
+        assertEquals(false, cachedFile.exists())
     }
 
     @Test

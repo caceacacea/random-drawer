@@ -20,6 +20,8 @@ class RandomDrawerComposeTest {
                     onToggleDrawer = {},
                     onNewSpace = {},
                     onSelectSpace = {},
+                    onRenameSpace = { _, _ -> },
+                    onDeleteSpace = {},
                     onToggleTheme = {},
                     onDeleteAllCache = {},
                     onSetDrawMode = {},
@@ -31,6 +33,7 @@ class RandomDrawerComposeTest {
                     onAddText = { _ -> },
                     onAddFile = {},
                     onAddFileWithName = {},
+                    onDeleteItem = {},
                     onConfirmFileWithName = { _, _ -> },
                     onCancelFileWithName = {},
                     onOpenFile = { _, _ -> }

@@ -85,6 +85,25 @@ class RandomDrawerViewModel(
         }
     }
 
+    fun renameSpace(spaceId: Long, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+
+        viewModelScope.launch {
+            repository.renameSpace(spaceId, trimmed)
+        }
+    }
+
+    fun deleteSpace(spaceId: Long) {
+        viewModelScope.launch {
+            repository.deleteSpace(spaceId)
+            if (mutableState.value.selectedSpaceId == spaceId) {
+                val fallbackId = repository.getSpaces().firstOrNull()?.id ?: repository.createSpace()
+                selectSpace(fallbackId)
+            }
+        }
+    }
+
     fun addText(text: String) {
         val spaceId = mutableState.value.selectedSpaceId ?: return
         val trimmed = text.trim()
@@ -92,6 +111,12 @@ class RandomDrawerViewModel(
 
         viewModelScope.launch {
             repository.addTextItem(spaceId, trimmed)
+        }
+    }
+
+    fun deleteItem(itemId: Long) {
+        viewModelScope.launch {
+            repository.deleteItem(itemId)
         }
     }
 

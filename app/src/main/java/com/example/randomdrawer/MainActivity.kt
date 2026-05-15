@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
                     onToggleDrawer = viewModel::toggleDrawer,
                     onNewSpace = viewModel::createNewSpace,
                     onSelectSpace = viewModel::selectSpace,
+                    onRenameSpace = viewModel::renameSpace,
+                    onDeleteSpace = viewModel::deleteSpace,
                     onToggleTheme = viewModel::toggleTheme,
                     onDeleteAllCache = viewModel::deleteAllCache,
                     onSetDrawMode = viewModel::setDrawMode,
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         fileWithNameMode = true
                         addFileLauncher.launch(arrayOf("*/*"))
                     },
+                    onDeleteItem = viewModel::deleteItem,
                     onConfirmFileWithName = { pendingFile, customName ->
                         val uri = Uri.parse(pendingFile.uriString)
                         val spaceId = viewModel.state.value.selectedSpaceId

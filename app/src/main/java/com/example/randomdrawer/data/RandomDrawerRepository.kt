@@ -48,6 +48,23 @@ class RandomDrawerRepository(
         )
     }
 
+    suspend fun renameSpace(spaceId: Long, title: String, nowMillis: Long = System.currentTimeMillis()) {
+        val trimmed = title.trim()
+        if (trimmed.isNotEmpty()) {
+            dao.updateSpaceTitle(spaceId, trimmed, nowMillis)
+        }
+    }
+
+    suspend fun deleteSpace(spaceId: Long): Int {
+        val paths = dao.getCachedPathsForSpace(spaceId)
+        fileCacheManager.deleteCachedFiles(paths)
+        return dao.deleteSpace(spaceId)
+    }
+
+    suspend fun getSpaces(): List<DrawSpace> {
+        return dao.getSpaces().map { it.toDomain() }
+    }
+
     fun observeSpaces(): Flow<List<DrawSpace>> = dao.observeSpaces().map { spaces ->
         spaces.map { it.toDomain() }
     }
@@ -140,6 +157,12 @@ class RandomDrawerRepository(
         )
         val cached = fileCacheManager.copyToCache(spaceId, itemId, originalFileName, input)
         dao.updateCachedFilePath(itemId, cached.path)
+    }
+
+    suspend fun deleteItem(itemId: Long): Int {
+        val item = dao.getItem(itemId) ?: return 0
+        item.cachedFilePath?.let { fileCacheManager.deleteCachedFiles(listOf(it)) }
+        return dao.deleteItem(itemId)
     }
 
     suspend fun updateDrawSettings(spaceId: Long, drawMode: DrawMode, drawCount: Int) {

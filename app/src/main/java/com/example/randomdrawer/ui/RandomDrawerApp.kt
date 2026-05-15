@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -15,7 +16,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.ItemKind
@@ -44,6 +45,8 @@ fun RandomDrawerApp(
     onToggleDrawer: () -> Unit,
     onNewSpace: () -> Unit,
     onSelectSpace: (Long) -> Unit,
+    onRenameSpace: (Long, String) -> Unit,
+    onDeleteSpace: (Long) -> Unit,
     onToggleTheme: () -> Unit,
     onDeleteAllCache: () -> Unit,
     onSetDrawMode: (DrawMode) -> Unit,
@@ -55,6 +58,7 @@ fun RandomDrawerApp(
     onAddText: (String) -> Unit,
     onAddFile: () -> Unit,
     onAddFileWithName: () -> Unit,
+    onDeleteItem: (Long) -> Unit,
     onConfirmFileWithName: (PendingPickedFile, String) -> Unit,
     onCancelFileWithName: () -> Unit,
     onOpenFile: (String, String?) -> Unit
@@ -62,6 +66,8 @@ fun RandomDrawerApp(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var textDialogOpen by remember { mutableStateOf(false) }
     var textValue by remember { mutableStateOf("") }
+    var renameSpaceId by remember { mutableStateOf<Long?>(null) }
+    var renameValue by remember { mutableStateOf("") }
 
     LaunchedEffect(state.drawerOpen) {
         if (state.drawerOpen) drawerState.open() else drawerState.close()
@@ -73,10 +79,15 @@ fun RandomDrawerApp(
             ModalDrawerSheet {
                 Text("Draw spaces", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
                 state.spaces.forEach { space ->
-                    NavigationDrawerItem(
-                        label = { Text(space.title) },
+                    SpaceRow(
+                        title = space.title,
                         selected = space.id == state.selectedSpaceId,
-                        onClick = { onSelectSpace(space.id) }
+                        onSelect = { onSelectSpace(space.id) },
+                        onRename = {
+                            renameSpaceId = space.id
+                            renameValue = space.title
+                        },
+                        onDelete = { onDeleteSpace(space.id) }
                     )
                 }
                 TextButton(onClick = onNewSpace) { Text("+ New") }
@@ -173,22 +184,32 @@ fun RandomDrawerApp(
                 Text("Saved entries", style = MaterialTheme.typography.titleMedium)
                 state.items.forEach { item ->
                     Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(item.displayName)
-                            Text(
-                                if (item.kind == ItemKind.TEXT) {
-                                    "Text item"
-                                } else if (item.cachedFilePath == null) {
-                                    "Cache deleted"
-                                } else {
-                                    "File cache ready"
-                                },
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            val cachedPath = item.cachedFilePath
-                            if (item.kind == ItemKind.FILE && cachedPath != null) {
-                                TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
-                                    Text("Open")
+                        Row(
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(item.displayName)
+                                Text(
+                                    if (item.kind == ItemKind.TEXT) {
+                                        "Text item"
+                                    } else if (item.cachedFilePath == null) {
+                                        "Cache deleted"
+                                    } else {
+                                        "File cache ready"
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val cachedPath = item.cachedFilePath
+                                if (item.kind == ItemKind.FILE && cachedPath != null) {
+                                    TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
+                                        Text("Open")
+                                    }
+                                }
+                                TextButton(onClick = { onDeleteItem(item.id) }) {
+                                    Text("Delete")
                                 }
                             }
                         }
@@ -225,6 +246,32 @@ fun RandomDrawerApp(
         )
     }
 
+    renameSpaceId?.let { spaceId ->
+        AlertDialog(
+            onDismissRequest = { renameSpaceId = null },
+            title = { Text("Rename space") },
+            text = {
+                OutlinedTextField(
+                    value = renameValue,
+                    onValueChange = { renameValue = it },
+                    label = { Text("Space name") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = renameValue.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onRenameSpace(spaceId, trimmed)
+                        renameSpaceId = null
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameSpaceId = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     state.pendingPickedFile?.let { pendingFile ->
         var displayName by remember(pendingFile.uriString) {
             mutableStateOf(pendingFile.originalFileName)
@@ -252,6 +299,40 @@ fun RandomDrawerApp(
                 TextButton(onClick = onCancelFileWithName) { Text("Cancel") }
             }
         )
+    }
+}
+
+@Composable
+private fun SpaceRow(
+    title: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Surface(
+        color = if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                title,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 12.dp)
+                    .pointerInput(title) {
+                        detectTapGestures(
+                            onTap = { onSelect() },
+                            onLongPress = { onRename() }
+                        )
+                    }
+            )
+            TextButton(onClick = onDelete) {
+                Text("Delete")
+            }
+        }
     }
 }
 
