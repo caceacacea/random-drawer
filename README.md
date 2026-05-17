@@ -1,3 +1,5 @@
+# THIS IS AI SLOP
+
 # Random Drawer
 
 Private random picker for Android. Random Drawer lets users save text entries or private cached files, organize them into separate draw spaces, and draw one or many random results without sending data to a server.
