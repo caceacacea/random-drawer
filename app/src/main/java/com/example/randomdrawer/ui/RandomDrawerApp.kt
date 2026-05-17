@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -67,6 +69,8 @@ import com.example.randomdrawer.domain.MIN_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.ThemeMode
 import kotlin.math.PI
 import kotlin.math.sin
+
+const val RESULT_RING_PULSE_PERIOD_MILLIS = 1200L
 
 @Composable
 fun RandomDrawerApp(
@@ -521,7 +525,7 @@ private fun DrawResultDialog(
 @Composable
 private fun ProcessingResultContent() {
     val spinProgress = rememberFrameLoopProgress(periodMillis = 720L)
-    val pulseProgress = rememberFrameLoopProgress(periodMillis = 820L)
+    val pulseProgress = rememberFrameLoopProgress(periodMillis = RESULT_RING_PULSE_PERIOD_MILLIS)
     val pulse = 0.82f + (0.24f * ((sin(pulseProgress * PI * 2.0) + 1.0) / 2.0)).toFloat()
     val spin = spinProgress * 360f
 
@@ -603,12 +607,12 @@ private fun DrawPopupResultContent(
     onOpenFile: (String, String?) -> Unit
 ) {
     Column(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         if (result.items.isEmpty()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -616,9 +620,8 @@ private fun DrawPopupResultContent(
                 Text("No entries to draw", style = MaterialTheme.typography.titleMedium)
             }
         } else {
-            ResultContent(
+            ResultRevealContent(
                 result = result,
-                showStatusIcon = true,
                 onToggleResultExpanded = onToggleResultExpanded,
                 onOpenFile = onOpenFile
             )
@@ -628,6 +631,179 @@ private fun DrawPopupResultContent(
                 Text("OK")
             }
         }
+    }
+}
+
+@Composable
+private fun ResultRevealContent(
+    result: DrawResult,
+    onToggleResultExpanded: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
+) {
+    val firstItem = result.items.first()
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.fillMaxWidth()) {
+            CelebrationDots(Modifier.fillMaxWidth().height(190.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    resultRevealHeader(result),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge
+                )
+                ResultRevealIcon()
+                Text(
+                    firstItem.displayName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                ResultChip(resultItemChipLabel(firstItem))
+                val cachedPath = firstItem.cachedFilePath
+                if (firstItem.kind == ItemKind.FILE && cachedPath != null) {
+                    TextButton(onClick = { onOpenFile(cachedPath, firstItem.mimeType) }) {
+                        Text("Open")
+                    }
+                }
+            }
+        }
+
+        if (result.items.size > 1) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Drawn items", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = onToggleResultExpanded) {
+                    Text(if (result.expanded) "Hide" else "Show all")
+                }
+            }
+            if (result.expanded) {
+                result.items.forEachIndexed { index, item ->
+                    ResultListRow(index = index, item = item, onOpenFile = onOpenFile)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CelebrationDots(modifier: Modifier = Modifier) {
+    val progress = rememberFrameLoopProgress(periodMillis = 1800L)
+    val primary = MaterialTheme.colorScheme.primary
+    val muted = MaterialTheme.colorScheme.surfaceVariant
+
+    Canvas(modifier) {
+        val dots = listOf(
+            Triple(0.16f, 0.22f, 3.5f),
+            Triple(0.28f, 0.78f, 2.5f),
+            Triple(0.72f, 0.18f, 3.0f),
+            Triple(0.86f, 0.58f, 2.5f),
+            Triple(0.52f, 0.88f, 2.0f)
+        )
+        dots.forEachIndexed { index, (x, y, radius) ->
+            val wave = ((sin((progress + index * 0.16f) * PI * 2.0) + 1.0) / 2.0).toFloat()
+            val color = if (index % 2 == 0) primary else muted
+            drawCircle(
+                color = color.copy(alpha = 0.2f + 0.5f * wave),
+                radius = radius.dp.toPx(),
+                center = Offset(size.width * x, size.height * (y - 0.04f * wave))
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResultRevealIcon() {
+    val pulseProgress = rememberFrameLoopProgress(periodMillis = RESULT_RING_PULSE_PERIOD_MILLIS)
+    val pulse = 0.88f + (0.16f * ((sin(pulseProgress * PI * 2.0) + 1.0) / 2.0)).toFloat()
+    val ringColor = MaterialTheme.colorScheme.primary
+    val centerColor = MaterialTheme.colorScheme.surface
+    val markColor = MaterialTheme.colorScheme.primary
+
+    Canvas(
+        modifier = Modifier
+            .size(92.dp)
+            .graphicsLayer(scaleX = pulse, scaleY = pulse)
+    ) {
+        val strokeWidth = 3.dp.toPx()
+        drawCircle(ringColor.copy(alpha = 0.18f), radius = size.minDimension * 0.48f)
+        drawCircle(
+            color = ringColor,
+            radius = size.minDimension * 0.43f,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+        drawCircle(centerColor, radius = size.minDimension * 0.31f)
+        drawLine(
+            color = markColor,
+            start = Offset(size.width * 0.36f, size.height * 0.52f),
+            end = Offset(size.width * 0.47f, size.height * 0.63f),
+            strokeWidth = 4.dp.toPx(),
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = markColor,
+            start = Offset(size.width * 0.47f, size.height * 0.63f),
+            end = Offset(size.width * 0.68f, size.height * 0.38f),
+            strokeWidth = 4.dp.toPx(),
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+private fun ResultChip(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+@Composable
+private fun ResultListRow(
+    index: Int,
+    item: com.example.randomdrawer.domain.DrawerItem,
+    onOpenFile: (String, String?) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("${index + 1}. ${item.displayName}", style = MaterialTheme.typography.bodyMedium)
+                Text(resultItemChipLabel(item), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            val cachedPath = item.cachedFilePath
+            if (item.kind == ItemKind.FILE && cachedPath != null) {
+                TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
+                    Text("Open")
+                }
+            }
+        }
+    }
+}
+
+fun resultRevealHeader(result: DrawResult): String {
+    return if (result.items.size == 1) "Selected" else "${result.items.size} results selected"
+}
+
+private fun resultItemChipLabel(item: com.example.randomdrawer.domain.DrawerItem): String {
+    return when {
+        item.kind == ItemKind.TEXT -> "text"
+        item.cachedFilePath == null -> "cache deleted"
+        else -> "file"
     }
 }
 

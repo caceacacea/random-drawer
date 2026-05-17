@@ -3,6 +3,7 @@ package com.example.randomdrawer.ui
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawerItem
 import com.example.randomdrawer.domain.DRAW_ANIMATION_DELAY_STEP_MILLIS
+import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.RandomDrawUseCase
 import kotlin.random.Random
@@ -92,5 +93,16 @@ class RandomDrawerViewModelTest {
     fun animationDelayUsesQuarterSecondSteps() {
         assertEquals(250L, DRAW_ANIMATION_DELAY_STEP_MILLIS)
         assertEquals("1.25s", RandomDrawerUiState(animationDelayMillis = 1250L).animationDelayLabel)
+    }
+
+    @Test
+    fun resultRevealCopyLabelsSingleAndMultipleResults() {
+        val items = (1L..2L).map {
+            DrawerItem(it, 1L, ItemKind.TEXT, "Item $it", null, null, null, it)
+        }
+
+        assertEquals("Selected", resultRevealHeader(DrawResult(1L, listOf(items.first()), 10L)))
+        assertEquals("2 results selected", resultRevealHeader(DrawResult(1L, items, 10L)))
+        assertEquals(1200L, RESULT_RING_PULSE_PERIOD_MILLIS)
     }
 }
