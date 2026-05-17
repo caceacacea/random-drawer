@@ -8,6 +8,7 @@ import com.example.randomdrawer.domain.RandomDrawUseCase
 import com.example.randomdrawer.domain.ThemeMode
 import java.io.InputStream
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,8 @@ import kotlinx.coroutines.launch
 
 class RandomDrawerViewModel(
     private val repository: RandomDrawerRepository,
-    private val randomDrawUseCase: RandomDrawUseCase = RandomDrawUseCase()
+    private val randomDrawUseCase: RandomDrawUseCase = RandomDrawUseCase(),
+    private val drawAnimationMillis: Long = 950L
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(RandomDrawerUiState())
     val state: StateFlow<RandomDrawerUiState> = mutableState.asStateFlow()
@@ -153,12 +155,16 @@ class RandomDrawerViewModel(
     }
 
     fun drawRandom() {
-        val current = mutableState.value
-        val next = mutableState.value.draw(randomDrawUseCase)
-        mutableState.value = next
-        val result = next.lastResult
-        if (result.items.isNotEmpty()) {
-            viewModelScope.launch {
+        if (mutableState.value.isDrawing) return
+        mutableState.value = mutableState.value.copy(isDrawing = true)
+
+        viewModelScope.launch {
+            delay(drawAnimationMillis)
+            val current = mutableState.value.copy(isDrawing = false)
+            val next = current.draw(randomDrawUseCase)
+            mutableState.value = next
+            val result = next.lastResult
+            if (result.items.isNotEmpty()) {
                 repository.saveLastResult(result)
                 if (current.drawMode == DrawMode.SINGLE) {
                     val itemId = result.items.single().id

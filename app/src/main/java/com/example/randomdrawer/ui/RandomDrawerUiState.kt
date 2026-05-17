@@ -19,6 +19,7 @@ data class RandomDrawerUiState(
     val lastSingleItemId: Long? = null,
     val lastSingleStreakCount: Int = 0,
     val lastResult: DrawResult = DrawResult(0L, emptyList(), 0L),
+    val isDrawing: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.AMOLED,
     val drawerOpen: Boolean = false,
     val pendingPickedFile: PendingPickedFile? = null
@@ -46,7 +47,8 @@ data class RandomDrawerUiState(
                 lastSingleItemId = lastSingleItemId,
                 lastSingleStreakCount = lastSingleStreakCount,
                 multiRepeatLimit = multiRepeatLimit
-            )
+            ),
+            isDrawing = false
         )
     }
 

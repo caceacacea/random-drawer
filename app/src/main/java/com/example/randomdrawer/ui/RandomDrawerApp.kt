@@ -1,16 +1,32 @@
 package com.example.randomdrawer.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -32,10 +48,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.randomdrawer.domain.DrawMode
+import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.ThemeMode
 
@@ -362,49 +383,134 @@ private fun ResultCard(
     onOpenFile: (String, String?) -> Unit
 ) {
     val result = state.lastResult
-    if (result.items.isEmpty()) {
-        Card(Modifier.fillMaxWidth()) {
-            Text("No result yet", Modifier.padding(16.dp))
-        }
-        return
-    }
-
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (result.items.size > 1) {
-                    TextButton(onClick = onToggleResultExpanded) {
-                        Text(if (result.expanded) "v" else "<")
+        AnimatedContent(
+            targetState = state.isDrawing,
+            transitionSpec = {
+                (fadeIn(tween(180)) + scaleIn(tween(180), initialScale = 0.96f))
+                    .togetherWith(fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.98f))
+            },
+            label = "drawResultAnimation"
+        ) { isDrawing ->
+            when {
+                isDrawing -> ProcessingResultContent()
+                result.items.isEmpty() -> Text("No result yet", Modifier.padding(16.dp))
+                else -> ConfirmedResultContent(result, onToggleResultExpanded, onOpenFile)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProcessingResultContent() {
+    val transition = rememberInfiniteTransition(label = "drawingPulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "drawingPulse"
+    )
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(88.dp)
+                .graphicsLayer(scaleX = pulse, scaleY = pulse)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4.dp
+            )
+            StatusCircleIcon(processing = true)
+        }
+        Text("Drawing...", style = MaterialTheme.typography.titleMedium)
+        Text("Picking a random result", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ConfirmedResultContent(
+    result: DrawResult,
+    onToggleResultExpanded: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
+) {
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (result.items.size > 1) {
+                TextButton(onClick = onToggleResultExpanded) {
+                    Text(if (result.expanded) "v" else "<")
+                }
+            }
+            StatusCircleIcon(processing = false)
+            Column {
+                val firstItem = result.items.first()
+                Text(if (result.items.size > 1) "${result.items.size} random results" else "Random result")
+                Text(firstItem.displayName, style = MaterialTheme.typography.titleMedium)
+                if (firstItem.kind == ItemKind.FILE && firstItem.cachedFilePath == null) {
+                    Text("Cache deleted", color = MaterialTheme.colorScheme.error)
+                }
+                val cachedPath = firstItem.cachedFilePath
+                if (firstItem.kind == ItemKind.FILE && cachedPath != null) {
+                    TextButton(onClick = { onOpenFile(cachedPath, firstItem.mimeType) }) {
+                        Text("Open")
                     }
                 }
-                Column {
-                    val firstItem = result.items.first()
-                    Text(if (result.items.size > 1) "${result.items.size} random results" else "Random result")
-                    Text(firstItem.displayName, style = MaterialTheme.typography.titleMedium)
-                    if (firstItem.kind == ItemKind.FILE && firstItem.cachedFilePath == null) {
-                        Text("Cache deleted", color = MaterialTheme.colorScheme.error)
-                    }
-                    val cachedPath = firstItem.cachedFilePath
-                    if (firstItem.kind == ItemKind.FILE && cachedPath != null) {
-                        TextButton(onClick = { onOpenFile(cachedPath, firstItem.mimeType) }) {
+            }
+        }
+        if (result.expanded) {
+            result.items.forEachIndexed { index, item ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${index + 1}. ${item.displayName}")
+                    val cachedPath = item.cachedFilePath
+                    if (item.kind == ItemKind.FILE && cachedPath != null) {
+                        TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
                             Text("Open")
                         }
                     }
                 }
             }
-            if (result.expanded) {
-                result.items.forEachIndexed { index, item ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("${index + 1}. ${item.displayName}")
-                        val cachedPath = item.cachedFilePath
-                        if (item.kind == ItemKind.FILE && cachedPath != null) {
-                            TextButton(onClick = { onOpenFile(cachedPath, item.mimeType) }) {
-                                Text("Open")
-                            }
-                        }
-                    }
-                }
-            }
+        }
+    }
+}
+
+@Composable
+private fun StatusCircleIcon(processing: Boolean) {
+    val fillColor = if (processing) {
+        MaterialTheme.colorScheme.surfaceVariant
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val markColor = if (processing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
+
+    Canvas(Modifier.size(44.dp)) {
+        drawCircle(fillColor)
+        if (processing) {
+            drawCircle(markColor, radius = 4.dp.toPx())
+        } else {
+            val strokeWidth = 4.dp.toPx()
+            drawLine(
+                color = markColor,
+                start = Offset(size.width * 0.28f, size.height * 0.52f),
+                end = Offset(size.width * 0.44f, size.height * 0.68f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = markColor,
+                start = Offset(size.width * 0.44f, size.height * 0.68f),
+                end = Offset(size.width * 0.74f, size.height * 0.34f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
         }
     }
 }

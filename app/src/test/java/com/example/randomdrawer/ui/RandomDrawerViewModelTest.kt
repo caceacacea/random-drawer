@@ -48,4 +48,21 @@ class RandomDrawerViewModelTest {
         assertEquals(4, limited.cappedDrawCount)
         assertEquals(5, unlimited.cappedDrawCount)
     }
+
+    @Test
+    fun drawCompletionClearsDrawingStateAndStoresResult() = runTest {
+        val items = listOf(
+            DrawerItem(1L, 1L, ItemKind.TEXT, "Item 1", null, null, null, 1L)
+        )
+        val drawing = RandomDrawerUiState(
+            selectedSpaceId = 1L,
+            items = items,
+            isDrawing = true
+        )
+
+        val completed = drawing.draw(RandomDrawUseCase(Random(2)))
+
+        assertEquals(false, completed.isDrawing)
+        assertEquals("Item 1", completed.lastResult.items.single().displayName)
+    }
 }
