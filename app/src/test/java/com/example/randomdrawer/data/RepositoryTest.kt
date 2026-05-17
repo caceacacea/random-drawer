@@ -59,6 +59,21 @@ class RepositoryTest {
     }
 
     @Test
+    fun storesAnimationSettingsWithClampedDelay() = runTest {
+        val repository = RandomDrawerRepository(dao, FileCacheManager(context.filesDir))
+
+        repository.setAnimationsEnabled(false)
+        repository.setAnimationDelayMillis(100L)
+
+        assertEquals(false, repository.observeAnimationsEnabled().first())
+        assertEquals(500L, repository.observeAnimationDelayMillis().first())
+
+        repository.setAnimationDelayMillis(6000L)
+
+        assertEquals(5000L, repository.observeAnimationDelayMillis().first())
+    }
+
+    @Test
     fun storesRepeatLimitsAndSingleDrawStreak() = runTest {
         val spaceId = dao.insertSpace(DrawSpaceEntity(title = "First", createdAtMillis = 1L, updatedAtMillis = 1L))
 

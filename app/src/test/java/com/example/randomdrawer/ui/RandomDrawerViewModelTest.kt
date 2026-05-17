@@ -68,4 +68,22 @@ class RandomDrawerViewModelTest {
         assertEquals("Item 1", completed.lastResult.items.single().displayName)
         assertEquals(false, completed.dismissDrawPopup().drawPopupVisible)
     }
+
+    @Test
+    fun disabledAnimationStoresResultWithoutPopup() = runTest {
+        val items = listOf(
+            DrawerItem(1L, 1L, ItemKind.TEXT, "Item 1", null, null, null, 1L)
+        )
+        val state = RandomDrawerUiState(
+            selectedSpaceId = 1L,
+            items = items,
+            animationsEnabled = false
+        )
+
+        val completed = state.draw(RandomDrawUseCase(Random(2)))
+
+        assertEquals(false, completed.isDrawing)
+        assertEquals(false, completed.drawPopupVisible)
+        assertEquals("Item 1", completed.lastResult.items.single().displayName)
+    }
 }

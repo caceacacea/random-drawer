@@ -7,7 +7,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -28,7 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -53,20 +54,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.randomdrawer.domain.DRAW_ANIMATION_DELAY_STEP_MILLIS
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
+import com.example.randomdrawer.domain.MAX_DRAW_ANIMATION_DELAY_MILLIS
+import com.example.randomdrawer.domain.MIN_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.ThemeMode
-
-private val VideoModalSurface = Color(0xFF101719)
-private val VideoModalBorder = Color(0xFF263338)
 
 @Composable
 fun RandomDrawerApp(
@@ -82,6 +83,8 @@ fun RandomDrawerApp(
     onSetDrawCount: (Int) -> Unit,
     onSetSingleRepeatLimit: (Int) -> Unit,
     onSetMultiRepeatLimit: (Int) -> Unit,
+    onSetAnimationsEnabled: (Boolean) -> Unit,
+    onSetAnimationDelayMillis: (Long) -> Unit,
     onDraw: () -> Unit,
     onDismissDrawPopup: () -> Unit,
     onToggleResultExpanded: () -> Unit,
@@ -139,6 +142,17 @@ fun RandomDrawerApp(
                     value = state.multiRepeatLimit,
                     onValueChange = onSetMultiRepeatLimit
                 )
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Animations")
+                    Switch(checked = state.animationsEnabled, onCheckedChange = onSetAnimationsEnabled)
+                }
+                if (state.animationsEnabled) {
+                    AnimationDelayRow(
+                        valueMillis = state.animationDelayMillis,
+                        label = state.animationDelayLabel,
+                        onValueChange = onSetAnimationDelayMillis
+                    )
+                }
             }
         }
     ) {
@@ -395,6 +409,31 @@ private fun RepeatLimitRow(
 }
 
 @Composable
+private fun AnimationDelayRow(
+    valueMillis: Long,
+    label: String,
+    onValueChange: (Long) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("Animation delay")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                enabled = valueMillis > MIN_DRAW_ANIMATION_DELAY_MILLIS,
+                onClick = { onValueChange(valueMillis - DRAW_ANIMATION_DELAY_STEP_MILLIS) }
+            ) { Text("-") }
+            Text(label, modifier = Modifier.padding(12.dp))
+            OutlinedButton(
+                enabled = valueMillis < MAX_DRAW_ANIMATION_DELAY_MILLIS,
+                onClick = { onValueChange(valueMillis + DRAW_ANIMATION_DELAY_STEP_MILLIS) }
+            ) { Text("+") }
+        }
+    }
+}
+
+@Composable
 private fun ResultCard(
     state: RandomDrawerUiState,
     onToggleResultExpanded: () -> Unit,
@@ -422,6 +461,21 @@ private fun DrawResultDialog(
     onToggleResultExpanded: () -> Unit,
     onOpenFile: (String, String?) -> Unit
 ) {
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        entered = true
+    }
+    val popupScale by animateFloatAsState(
+        targetValue = if (entered) 1f else 0.72f,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "drawPopupScale"
+    )
+    val popupAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "drawPopupAlpha"
+    )
+
     Dialog(
         onDismissRequest = {
             if (!state.isDrawing) onDismiss()
@@ -434,9 +488,14 @@ private fun DrawResultDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 360.dp),
+                .widthIn(max = 360.dp)
+                .graphicsLayer(
+                    scaleX = popupScale,
+                    scaleY = popupScale,
+                    alpha = popupAlpha
+                ),
             shape = RoundedCornerShape(24.dp),
-            color = VideoModalSurface,
+            color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shadowElevation = 12.dp,
             tonalElevation = 0.dp
@@ -476,6 +535,14 @@ private fun ProcessingResultContent() {
         ),
         label = "drawingPulse"
     )
+    val spin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = LinearEasing)
+        ),
+        label = "drawingSpin"
+    )
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(28.dp),
@@ -488,11 +555,28 @@ private fun ProcessingResultContent() {
                 .size(88.dp)
                 .graphicsLayer(scaleX = pulse, scaleY = pulse)
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 4.dp
-            )
+            val ringColor = MaterialTheme.colorScheme.primary
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(rotationZ = spin)
+            ) {
+                val strokeWidth = 4.dp.toPx()
+                drawArc(
+                    color = ringColor.copy(alpha = 0.2f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = ringColor,
+                    startAngle = -90f,
+                    sweepAngle = 250f,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
             StatusCircleIcon(processing = true)
         }
         Text("Drawing...", style = MaterialTheme.typography.titleMedium)
@@ -587,7 +671,7 @@ private fun ResultContent(
 @Composable
 private fun StatusCircleIcon(processing: Boolean) {
     val fillColor = if (processing) {
-        VideoModalBorder
+        MaterialTheme.colorScheme.surfaceVariant
     } else {
         MaterialTheme.colorScheme.primary
     }

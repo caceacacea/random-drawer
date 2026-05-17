@@ -10,24 +10,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.example.randomdrawer.domain.ThemeMode
 
-private val AccentGreen = Color(0xFF36D9CF)
+private val AccentGreen = Color(0xFF22D6C9)
 
 private val AmoledScheme = darkColorScheme(
     primary = AccentGreen,
     background = Color.Black,
-    surface = Color(0xFF090D0F),
-    surfaceVariant = Color(0xFF141C1F),
+    surface = Color(0xFF070707),
+    surfaceVariant = Color(0xFF191B1D),
     onPrimary = Color(0xFF041313),
-    onBackground = Color(0xFFF2FBFA),
-    onSurface = Color(0xFFF2FBFA),
-    onSurfaceVariant = Color(0xFFA9B8BA)
+    onBackground = Color(0xFFF5F8F8),
+    onSurface = Color(0xFFF5F8F8),
+    onSurfaceVariant = Color(0xFFC0C8CA)
 )
 
 private val LightScheme = lightColorScheme(
-    primary = Color(0xFF168E87),
-    background = Color(0xFFF8FAF9),
+    primary = Color(0xFF008C86),
+    background = Color(0xFFF7F8FA),
     surface = Color.White,
-    surfaceVariant = Color(0xFFEAF1EE),
+    surfaceVariant = Color(0xFFEDEFF1),
     onPrimary = Color.White,
     onBackground = Color(0xFF202422),
     onSurface = Color(0xFF202422),

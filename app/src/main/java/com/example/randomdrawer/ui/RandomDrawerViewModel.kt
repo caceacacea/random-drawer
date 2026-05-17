@@ -6,6 +6,7 @@ import com.example.randomdrawer.data.RandomDrawerRepository
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.RandomDrawUseCase
 import com.example.randomdrawer.domain.ThemeMode
+import com.example.randomdrawer.domain.normalizeDrawAnimationDelayMillis
 import java.io.InputStream
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,8 +17,7 @@ import kotlinx.coroutines.launch
 
 class RandomDrawerViewModel(
     private val repository: RandomDrawerRepository,
-    private val randomDrawUseCase: RandomDrawUseCase = RandomDrawUseCase(),
-    private val drawAnimationMillis: Long = 950L
+    private val randomDrawUseCase: RandomDrawUseCase = RandomDrawUseCase()
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(RandomDrawerUiState())
     val state: StateFlow<RandomDrawerUiState> = mutableState.asStateFlow()
@@ -49,6 +49,16 @@ class RandomDrawerViewModel(
         viewModelScope.launch {
             repository.observeTheme().collect { theme ->
                 mutableState.value = mutableState.value.copy(themeMode = theme)
+            }
+        }
+        viewModelScope.launch {
+            repository.observeAnimationsEnabled().collect { enabled ->
+                mutableState.value = mutableState.value.copy(animationsEnabled = enabled)
+            }
+        }
+        viewModelScope.launch {
+            repository.observeAnimationDelayMillis().collect { delayMillis ->
+                mutableState.value = mutableState.value.copy(animationDelayMillis = delayMillis)
             }
         }
     }
@@ -156,35 +166,54 @@ class RandomDrawerViewModel(
 
     fun drawRandom() {
         if (mutableState.value.isDrawing) return
-        mutableState.value = mutableState.value.copy(isDrawing = true, drawPopupVisible = true)
+        val startingState = mutableState.value
+
+        if (!startingState.animationsEnabled) {
+            val next = startingState
+                .copy(isDrawing = false, drawPopupVisible = false)
+                .draw(randomDrawUseCase)
+            mutableState.value = next
+            viewModelScope.launch { saveDrawResult(startingState, next) }
+            return
+        }
+
+        mutableState.value = startingState.copy(isDrawing = true, drawPopupVisible = true)
 
         viewModelScope.launch {
-            delay(drawAnimationMillis)
-            val current = mutableState.value.copy(isDrawing = false)
+            delay(startingState.animationDelayMillis)
+            val current = mutableState.value.copy(
+                isDrawing = false,
+                drawPopupVisible = true,
+                animationsEnabled = true
+            )
             val next = current.draw(randomDrawUseCase)
             mutableState.value = next
-            val result = next.lastResult
-            if (result.items.isNotEmpty()) {
-                repository.saveLastResult(result)
-                if (current.drawMode == DrawMode.SINGLE) {
-                    val itemId = result.items.single().id
-                    val streakCount = if (itemId == current.lastSingleItemId) {
-                        current.lastSingleStreakCount + 1
-                    } else {
-                        1
-                    }
-                    mutableState.value = mutableState.value.copy(
-                        lastSingleItemId = itemId,
-                        lastSingleStreakCount = streakCount
-                    )
-                    repository.updateSingleDrawStreak(current.selectedSpaceId ?: result.spaceId, itemId, streakCount)
-                }
-            }
+            saveDrawResult(current, next)
         }
     }
 
     fun dismissDrawPopup() {
         mutableState.value = mutableState.value.dismissDrawPopup()
+    }
+
+    private suspend fun saveDrawResult(current: RandomDrawerUiState, next: RandomDrawerUiState) {
+        val result = next.lastResult
+        if (result.items.isEmpty()) return
+
+        repository.saveLastResult(result)
+        if (current.drawMode == DrawMode.SINGLE) {
+            val itemId = result.items.single().id
+            val streakCount = if (itemId == current.lastSingleItemId) {
+                current.lastSingleStreakCount + 1
+            } else {
+                1
+            }
+            mutableState.value = mutableState.value.copy(
+                lastSingleItemId = itemId,
+                lastSingleStreakCount = streakCount
+            )
+            repository.updateSingleDrawStreak(current.selectedSpaceId ?: result.spaceId, itemId, streakCount)
+        }
     }
 
     fun setDrawMode(mode: DrawMode) {
@@ -219,6 +248,21 @@ class RandomDrawerViewModel(
         mutableState.value = current.copy(multiRepeatLimit = next)
         current.selectedSpaceId?.let { spaceId ->
             viewModelScope.launch { repository.updateRepeatSettings(spaceId, current.singleRepeatLimit, next) }
+        }
+    }
+
+    fun setAnimationsEnabled(enabled: Boolean) {
+        mutableState.value = mutableState.value.copy(animationsEnabled = enabled)
+        viewModelScope.launch {
+            repository.setAnimationsEnabled(enabled)
+        }
+    }
+
+    fun setAnimationDelayMillis(delayMillis: Long) {
+        val next = normalizeDrawAnimationDelayMillis(delayMillis)
+        mutableState.value = mutableState.value.copy(animationDelayMillis = next)
+        viewModelScope.launch {
+            repository.setAnimationDelayMillis(next)
         }
     }
 

@@ -4,6 +4,7 @@ import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.DrawSpace
 import com.example.randomdrawer.domain.DrawerItem
+import com.example.randomdrawer.domain.DEFAULT_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.RandomDrawUseCase
 import com.example.randomdrawer.domain.ThemeMode
 
@@ -21,6 +22,8 @@ data class RandomDrawerUiState(
     val lastResult: DrawResult = DrawResult(0L, emptyList(), 0L),
     val isDrawing: Boolean = false,
     val drawPopupVisible: Boolean = false,
+    val animationsEnabled: Boolean = true,
+    val animationDelayMillis: Long = DEFAULT_DRAW_ANIMATION_DELAY_MILLIS,
     val themeMode: ThemeMode = ThemeMode.AMOLED,
     val drawerOpen: Boolean = false,
     val pendingPickedFile: PendingPickedFile? = null
@@ -33,13 +36,14 @@ data class RandomDrawerUiState(
         multiRepeatLimit == 0 -> drawCount.coerceAtLeast(1)
         else -> drawCount.coerceAtLeast(1).coerceAtMost(items.size * multiRepeatLimit.coerceAtLeast(1))
     }
+    val animationDelayLabel: String = "${animationDelayMillis / 1000.0}s"
 
     fun draw(useCase: RandomDrawUseCase): RandomDrawerUiState {
         if (items.isEmpty()) {
             return copy(
                 lastResult = DrawResult(selectedSpaceId ?: 0L, emptyList(), System.currentTimeMillis()),
                 isDrawing = false,
-                drawPopupVisible = true
+                drawPopupVisible = animationsEnabled
             )
         }
 
@@ -54,7 +58,7 @@ data class RandomDrawerUiState(
                 multiRepeatLimit = multiRepeatLimit
             ),
             isDrawing = false,
-            drawPopupVisible = true
+            drawPopupVisible = animationsEnabled
         )
     }
 

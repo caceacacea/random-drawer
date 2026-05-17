@@ -4,9 +4,11 @@ import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.DrawSpace
 import com.example.randomdrawer.domain.DrawerItem
+import com.example.randomdrawer.domain.DEFAULT_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.ThemeMode
 import com.example.randomdrawer.domain.TitleFormatter
+import com.example.randomdrawer.domain.normalizeDrawAnimationDelayMillis
 import java.io.InputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -19,11 +21,19 @@ class RandomDrawerRepository(
 ) {
     companion object {
         const val ThemeSettingKey = "theme"
+        const val AnimationsEnabledSettingKey = "animations_enabled"
+        const val AnimationDelayMillisSettingKey = "animation_delay_millis"
     }
 
     suspend fun ensureInitialSpace(nowMillis: Long = System.currentTimeMillis()): Long {
         if (dao.getSetting(ThemeSettingKey) == null) {
             dao.upsertSetting(AppSettingEntity(ThemeSettingKey, ThemeMode.AMOLED.name))
+        }
+        if (dao.getSetting(AnimationsEnabledSettingKey) == null) {
+            dao.upsertSetting(AppSettingEntity(AnimationsEnabledSettingKey, true.toString()))
+        }
+        if (dao.getSetting(AnimationDelayMillisSettingKey) == null) {
+            dao.upsertSetting(AppSettingEntity(AnimationDelayMillisSettingKey, DEFAULT_DRAW_ANIMATION_DELAY_MILLIS.toString()))
         }
 
         val spaces = dao.observeSpaces().first()
@@ -100,6 +110,27 @@ class RandomDrawerRepository(
 
     suspend fun setTheme(themeMode: ThemeMode) {
         dao.upsertSetting(AppSettingEntity(ThemeSettingKey, themeMode.name))
+    }
+
+    fun observeAnimationsEnabled(): Flow<Boolean> = dao.observeSetting(AnimationsEnabledSettingKey).map { setting ->
+        setting?.value?.toBooleanStrictOrNull() ?: true
+    }
+
+    suspend fun setAnimationsEnabled(enabled: Boolean) {
+        dao.upsertSetting(AppSettingEntity(AnimationsEnabledSettingKey, enabled.toString()))
+    }
+
+    fun observeAnimationDelayMillis(): Flow<Long> = dao.observeSetting(AnimationDelayMillisSettingKey).map { setting ->
+        normalizeDrawAnimationDelayMillis(setting?.value?.toLongOrNull() ?: DEFAULT_DRAW_ANIMATION_DELAY_MILLIS)
+    }
+
+    suspend fun setAnimationDelayMillis(delayMillis: Long) {
+        dao.upsertSetting(
+            AppSettingEntity(
+                AnimationDelayMillisSettingKey,
+                normalizeDrawAnimationDelayMillis(delayMillis).toString()
+            )
+        )
     }
 
     suspend fun addTextItem(spaceId: Long, text: String, nowMillis: Long = System.currentTimeMillis()) {

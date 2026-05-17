@@ -15,6 +15,15 @@ enum class ThemeMode {
     LIGHT
 }
 
+const val DEFAULT_DRAW_ANIMATION_DELAY_MILLIS = 1000L
+const val MIN_DRAW_ANIMATION_DELAY_MILLIS = 500L
+const val MAX_DRAW_ANIMATION_DELAY_MILLIS = 5000L
+const val DRAW_ANIMATION_DELAY_STEP_MILLIS = 500L
+
+fun normalizeDrawAnimationDelayMillis(delayMillis: Long): Long {
+    return delayMillis.coerceIn(MIN_DRAW_ANIMATION_DELAY_MILLIS, MAX_DRAW_ANIMATION_DELAY_MILLIS)
+}
+
 data class DrawSpace(
     val id: Long,
     val title: String,

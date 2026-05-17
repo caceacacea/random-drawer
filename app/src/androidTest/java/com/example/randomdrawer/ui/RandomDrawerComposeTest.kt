@@ -28,6 +28,8 @@ class RandomDrawerComposeTest {
                     onSetDrawCount = {},
                     onSetSingleRepeatLimit = {},
                     onSetMultiRepeatLimit = {},
+                    onSetAnimationsEnabled = {},
+                    onSetAnimationDelayMillis = {},
                     onDraw = {},
                     onDismissDrawPopup = {},
                     onToggleResultExpanded = {},

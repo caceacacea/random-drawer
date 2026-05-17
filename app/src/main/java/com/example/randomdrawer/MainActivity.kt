@@ -75,6 +75,8 @@ class MainActivity : ComponentActivity() {
                     onSetDrawCount = viewModel::setDrawCount,
                     onSetSingleRepeatLimit = viewModel::setSingleRepeatLimit,
                     onSetMultiRepeatLimit = viewModel::setMultiRepeatLimit,
+                    onSetAnimationsEnabled = viewModel::setAnimationsEnabled,
+                    onSetAnimationDelayMillis = viewModel::setAnimationDelayMillis,
                     onDraw = viewModel::drawRandom,
                     onDismissDrawPopup = viewModel::dismissDrawPopup,
                     onToggleResultExpanded = viewModel::toggleResultExpanded,
