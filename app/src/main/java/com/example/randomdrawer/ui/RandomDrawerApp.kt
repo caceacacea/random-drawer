@@ -7,12 +7,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -48,9 +42,11 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,6 +54,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -68,6 +65,8 @@ import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.MAX_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.MIN_DRAW_ANIMATION_DELAY_MILLIS
 import com.example.randomdrawer.domain.ThemeMode
+import kotlin.math.PI
+import kotlin.math.sin
 
 @Composable
 fun RandomDrawerApp(
@@ -110,48 +109,55 @@ fun RandomDrawerApp(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                Text("Draw spaces", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
-                state.spaces.forEach { space ->
-                    SpaceRow(
-                        title = space.title,
-                        selected = space.id == state.selectedSpaceId,
-                        onSelect = { onSelectSpace(space.id) },
-                        onRename = {
-                            renameSpaceId = space.id
-                            renameValue = space.title
-                        },
-                        onDelete = { onDeleteSpace(space.id) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .testTag("drawerSettingsScroll")
+                ) {
+                    Text("Draw spaces", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                    state.spaces.forEach { space ->
+                        SpaceRow(
+                            title = space.title,
+                            selected = space.id == state.selectedSpaceId,
+                            onSelect = { onSelectSpace(space.id) },
+                            onRename = {
+                                renameSpaceId = space.id
+                                renameValue = space.title
+                            },
+                            onDelete = { onDeleteSpace(space.id) }
+                        )
+                    }
+                    TextButton(onClick = onNewSpace) { Text("+ New") }
+                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("AMOLED black")
+                        Switch(checked = state.themeMode == ThemeMode.AMOLED, onCheckedChange = { onToggleTheme() })
+                    }
+                    OutlinedButton(onClick = onDeleteAllCache, modifier = Modifier.padding(16.dp)) {
+                        Text("Delete All Cache")
+                    }
+                    Text("Settings", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                    RepeatLimitRow(
+                        label = "Single repeat limit",
+                        value = state.singleRepeatLimit,
+                        onValueChange = onSetSingleRepeatLimit
                     )
-                }
-                TextButton(onClick = onNewSpace) { Text("+ New") }
-                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("AMOLED black")
-                    Switch(checked = state.themeMode == ThemeMode.AMOLED, onCheckedChange = { onToggleTheme() })
-                }
-                OutlinedButton(onClick = onDeleteAllCache, modifier = Modifier.padding(16.dp)) {
-                    Text("Delete All Cache")
-                }
-                Text("Settings", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
-                RepeatLimitRow(
-                    label = "Single repeat limit",
-                    value = state.singleRepeatLimit,
-                    onValueChange = onSetSingleRepeatLimit
-                )
-                RepeatLimitRow(
-                    label = "Multiple repeat limit",
-                    value = state.multiRepeatLimit,
-                    onValueChange = onSetMultiRepeatLimit
-                )
-                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Animations")
-                    Switch(checked = state.animationsEnabled, onCheckedChange = onSetAnimationsEnabled)
-                }
-                if (state.animationsEnabled) {
-                    AnimationDelayRow(
-                        valueMillis = state.animationDelayMillis,
-                        label = state.animationDelayLabel,
-                        onValueChange = onSetAnimationDelayMillis
+                    RepeatLimitRow(
+                        label = "Multiple repeat limit",
+                        value = state.multiRepeatLimit,
+                        onValueChange = onSetMultiRepeatLimit
                     )
+                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Animations")
+                        Switch(checked = state.animationsEnabled, onCheckedChange = onSetAnimationsEnabled)
+                    }
+                    if (state.animationsEnabled) {
+                        AnimationDelayRow(
+                            valueMillis = state.animationDelayMillis,
+                            label = state.animationDelayLabel,
+                            onValueChange = onSetAnimationDelayMillis
+                        )
+                    }
                 }
             }
         }
@@ -461,20 +467,9 @@ private fun DrawResultDialog(
     onToggleResultExpanded: () -> Unit,
     onOpenFile: (String, String?) -> Unit
 ) {
-    var entered by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        entered = true
-    }
-    val popupScale by animateFloatAsState(
-        targetValue = if (entered) 1f else 0.72f,
-        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-        label = "drawPopupScale"
-    )
-    val popupAlpha by animateFloatAsState(
-        targetValue = if (entered) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "drawPopupAlpha"
-    )
+    val entryProgress = rememberFrameEntryProgress(durationMillis = 360L)
+    val popupScale = 0.52f + (0.48f * entryProgress)
+    val popupAlpha = entryProgress
 
     Dialog(
         onDismissRequest = {
@@ -525,24 +520,10 @@ private fun DrawResultDialog(
 
 @Composable
 private fun ProcessingResultContent() {
-    val transition = rememberInfiniteTransition(label = "drawingPulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "drawingPulse"
-    )
-    val spin by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = LinearEasing)
-        ),
-        label = "drawingSpin"
-    )
+    val spinProgress = rememberFrameLoopProgress(periodMillis = 720L)
+    val pulseProgress = rememberFrameLoopProgress(periodMillis = 820L)
+    val pulse = 0.82f + (0.24f * ((sin(pulseProgress * PI * 2.0) + 1.0) / 2.0)).toFloat()
+    val spin = spinProgress * 360f
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(28.dp),
@@ -582,6 +563,36 @@ private fun ProcessingResultContent() {
         Text("Drawing...", style = MaterialTheme.typography.titleMedium)
         Text("Picking a random result", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun rememberFrameEntryProgress(durationMillis: Long): Float {
+    var progress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(durationMillis) {
+        val startNanos = withFrameNanos { it }
+        while (progress < 1f) {
+            withFrameNanos { nowNanos ->
+                val elapsedMillis = (nowNanos - startNanos) / 1_000_000f
+                val linearProgress = (elapsedMillis / durationMillis).coerceIn(0f, 1f)
+                progress = FastOutSlowInEasing.transform(linearProgress)
+            }
+        }
+    }
+    return progress
+}
+
+@Composable
+private fun rememberFrameLoopProgress(periodMillis: Long): Float {
+    var progress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(periodMillis) {
+        while (true) {
+            withFrameNanos { nowNanos ->
+                val elapsedMillis = nowNanos / 1_000_000L
+                progress = (elapsedMillis % periodMillis).toFloat() / periodMillis
+            }
+        }
+    }
+    return progress
 }
 
 @Composable
