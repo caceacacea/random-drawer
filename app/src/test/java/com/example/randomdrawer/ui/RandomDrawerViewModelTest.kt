@@ -2,6 +2,7 @@ package com.example.randomdrawer.ui
 
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawerItem
+import com.example.randomdrawer.domain.DRAW_ANIMATION_DELAY_STEP_MILLIS
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.RandomDrawUseCase
 import kotlin.random.Random
@@ -85,5 +86,11 @@ class RandomDrawerViewModelTest {
         assertEquals(false, completed.isDrawing)
         assertEquals(false, completed.drawPopupVisible)
         assertEquals("Item 1", completed.lastResult.items.single().displayName)
+    }
+
+    @Test
+    fun animationDelayUsesQuarterSecondSteps() {
+        assertEquals(250L, DRAW_ANIMATION_DELAY_STEP_MILLIS)
+        assertEquals("1.25s", RandomDrawerUiState(animationDelayMillis = 1250L).animationDelayLabel)
     }
 }
