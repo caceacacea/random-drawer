@@ -156,7 +156,7 @@ class RandomDrawerViewModel(
 
     fun drawRandom() {
         if (mutableState.value.isDrawing) return
-        mutableState.value = mutableState.value.copy(isDrawing = true)
+        mutableState.value = mutableState.value.copy(isDrawing = true, drawPopupVisible = true)
 
         viewModelScope.launch {
             delay(drawAnimationMillis)
@@ -181,6 +181,10 @@ class RandomDrawerViewModel(
                 }
             }
         }
+    }
+
+    fun dismissDrawPopup() {
+        mutableState.value = mutableState.value.dismissDrawPopup()
     }
 
     fun setDrawMode(mode: DrawMode) {

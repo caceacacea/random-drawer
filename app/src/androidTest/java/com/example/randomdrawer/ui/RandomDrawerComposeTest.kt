@@ -29,6 +29,7 @@ class RandomDrawerComposeTest {
                     onSetSingleRepeatLimit = {},
                     onSetMultiRepeatLimit = {},
                     onDraw = {},
+                    onDismissDrawPopup = {},
                     onToggleResultExpanded = {},
                     onAddText = { _ -> },
                     onAddFile = {},

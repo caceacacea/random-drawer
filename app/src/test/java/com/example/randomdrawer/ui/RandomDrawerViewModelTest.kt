@@ -57,12 +57,15 @@ class RandomDrawerViewModelTest {
         val drawing = RandomDrawerUiState(
             selectedSpaceId = 1L,
             items = items,
-            isDrawing = true
+            isDrawing = true,
+            drawPopupVisible = true
         )
 
         val completed = drawing.draw(RandomDrawUseCase(Random(2)))
 
         assertEquals(false, completed.isDrawing)
+        assertEquals(true, completed.drawPopupVisible)
         assertEquals("Item 1", completed.lastResult.items.single().displayName)
+        assertEquals(false, completed.dismissDrawPopup().drawPopupVisible)
     }
 }

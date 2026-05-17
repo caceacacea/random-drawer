@@ -20,6 +20,7 @@ data class RandomDrawerUiState(
     val lastSingleStreakCount: Int = 0,
     val lastResult: DrawResult = DrawResult(0L, emptyList(), 0L),
     val isDrawing: Boolean = false,
+    val drawPopupVisible: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.AMOLED,
     val drawerOpen: Boolean = false,
     val pendingPickedFile: PendingPickedFile? = null
@@ -35,7 +36,11 @@ data class RandomDrawerUiState(
 
     fun draw(useCase: RandomDrawUseCase): RandomDrawerUiState {
         if (items.isEmpty()) {
-            return copy(lastResult = DrawResult(selectedSpaceId ?: 0L, emptyList(), System.currentTimeMillis()))
+            return copy(
+                lastResult = DrawResult(selectedSpaceId ?: 0L, emptyList(), System.currentTimeMillis()),
+                isDrawing = false,
+                drawPopupVisible = true
+            )
         }
 
         return copy(
@@ -48,8 +53,14 @@ data class RandomDrawerUiState(
                 lastSingleStreakCount = lastSingleStreakCount,
                 multiRepeatLimit = multiRepeatLimit
             ),
-            isDrawing = false
+            isDrawing = false,
+            drawPopupVisible = true
         )
+    }
+
+    fun dismissDrawPopup(): RandomDrawerUiState {
+        if (isDrawing) return this
+        return copy(drawPopupVisible = false)
     }
 
     fun toggleResultExpanded(): RandomDrawerUiState {

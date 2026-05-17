@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
                     onSetSingleRepeatLimit = viewModel::setSingleRepeatLimit,
                     onSetMultiRepeatLimit = viewModel::setMultiRepeatLimit,
                     onDraw = viewModel::drawRandom,
+                    onDismissDrawPopup = viewModel::dismissDrawPopup,
                     onToggleResultExpanded = viewModel::toggleResultExpanded,
                     onAddText = viewModel::addText,
                     onAddFile = {

@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -51,14 +53,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.randomdrawer.domain.DrawMode
 import com.example.randomdrawer.domain.DrawResult
 import com.example.randomdrawer.domain.ItemKind
 import com.example.randomdrawer.domain.ThemeMode
+
+private val VideoModalSurface = Color(0xFF101719)
+private val VideoModalBorder = Color(0xFF263338)
 
 @Composable
 fun RandomDrawerApp(
@@ -75,6 +83,7 @@ fun RandomDrawerApp(
     onSetSingleRepeatLimit: (Int) -> Unit,
     onSetMultiRepeatLimit: (Int) -> Unit,
     onDraw: () -> Unit,
+    onDismissDrawPopup: () -> Unit,
     onToggleResultExpanded: () -> Unit,
     onAddText: (String) -> Unit,
     onAddFile: () -> Unit,
@@ -183,7 +192,7 @@ fun RandomDrawerApp(
 
                 ResultCard(state, onToggleResultExpanded, onOpenFile)
 
-                Button(onClick = onDraw, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onDraw, enabled = !state.isDrawing, modifier = Modifier.fillMaxWidth()) {
                     val label = if (state.drawMode == DrawMode.MULTIPLE) {
                         "Draw ${state.cappedDrawCount} Random"
                     } else {
@@ -321,6 +330,15 @@ fun RandomDrawerApp(
             }
         )
     }
+
+    if (state.drawPopupVisible) {
+        DrawResultDialog(
+            state = state,
+            onDismiss = onDismissDrawPopup,
+            onToggleResultExpanded = onToggleResultExpanded,
+            onOpenFile = onOpenFile
+        )
+    }
 }
 
 @Composable
@@ -384,18 +402,63 @@ private fun ResultCard(
 ) {
     val result = state.lastResult
     Card(Modifier.fillMaxWidth()) {
-        AnimatedContent(
-            targetState = state.isDrawing,
-            transitionSpec = {
-                (fadeIn(tween(180)) + scaleIn(tween(180), initialScale = 0.96f))
-                    .togetherWith(fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.98f))
-            },
-            label = "drawResultAnimation"
-        ) { isDrawing ->
-            when {
-                isDrawing -> ProcessingResultContent()
-                result.items.isEmpty() -> Text("No result yet", Modifier.padding(16.dp))
-                else -> ConfirmedResultContent(result, onToggleResultExpanded, onOpenFile)
+        if (result.items.isEmpty()) {
+            Text("No result yet", Modifier.padding(16.dp))
+        } else {
+            ResultContent(
+                result = result,
+                showStatusIcon = false,
+                onToggleResultExpanded = onToggleResultExpanded,
+                onOpenFile = onOpenFile
+            )
+        }
+    }
+}
+
+@Composable
+private fun DrawResultDialog(
+    state: RandomDrawerUiState,
+    onDismiss: () -> Unit,
+    onToggleResultExpanded: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
+) {
+    Dialog(
+        onDismissRequest = {
+            if (!state.isDrawing) onDismiss()
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = !state.isDrawing,
+            dismissOnClickOutside = !state.isDrawing
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 360.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = VideoModalSurface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shadowElevation = 12.dp,
+            tonalElevation = 0.dp
+        ) {
+            AnimatedContent(
+                targetState = state.isDrawing,
+                transitionSpec = {
+                    (fadeIn(tween(180)) + scaleIn(tween(180), initialScale = 0.94f))
+                        .togetherWith(fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.98f))
+                },
+                label = "drawPopupAnimation"
+            ) { isDrawing ->
+                if (isDrawing) {
+                    ProcessingResultContent()
+                } else {
+                    DrawPopupResultContent(
+                        result = state.lastResult,
+                        onDismiss = onDismiss,
+                        onToggleResultExpanded = onToggleResultExpanded,
+                        onOpenFile = onOpenFile
+                    )
+                }
             }
         }
     }
@@ -415,7 +478,7 @@ private fun ProcessingResultContent() {
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        modifier = Modifier.fillMaxWidth().padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -438,8 +501,45 @@ private fun ProcessingResultContent() {
 }
 
 @Composable
-private fun ConfirmedResultContent(
+private fun DrawPopupResultContent(
     result: DrawResult,
+    onDismiss: () -> Unit,
+    onToggleResultExpanded: () -> Unit,
+    onOpenFile: (String, String?) -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (result.items.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatusCircleIcon(processing = false)
+                Text("No entries to draw", style = MaterialTheme.typography.titleMedium)
+            }
+        } else {
+            ResultContent(
+                result = result,
+                showStatusIcon = true,
+                onToggleResultExpanded = onToggleResultExpanded,
+                onOpenFile = onOpenFile
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultContent(
+    result: DrawResult,
+    showStatusIcon: Boolean,
     onToggleResultExpanded: () -> Unit,
     onOpenFile: (String, String?) -> Unit
 ) {
@@ -450,7 +550,9 @@ private fun ConfirmedResultContent(
                     Text(if (result.expanded) "v" else "<")
                 }
             }
-            StatusCircleIcon(processing = false)
+            if (showStatusIcon) {
+                StatusCircleIcon(processing = false)
+            }
             Column {
                 val firstItem = result.items.first()
                 Text(if (result.items.size > 1) "${result.items.size} random results" else "Random result")
@@ -485,7 +587,7 @@ private fun ConfirmedResultContent(
 @Composable
 private fun StatusCircleIcon(processing: Boolean) {
     val fillColor = if (processing) {
-        MaterialTheme.colorScheme.surfaceVariant
+        VideoModalBorder
     } else {
         MaterialTheme.colorScheme.primary
     }
